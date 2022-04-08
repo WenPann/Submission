@@ -67,10 +67,10 @@ for i,well in enumerate(wells):
     t,oil=data_group.get_group(well)[['date_diff','oil']].values.T
     t1_loc=np.argmax(oil)
     print(i)
-    result = differential_evolution(type_curve, bounds=[(0,10*np.log(oil.max())),
-                                                 (0,np.log(oil.max())),
-                                                 (0,np.log(oil.max())),
-                                                 (0,2),
+    result = differential_evolution(type_curve, bounds=[(0.01,10*np.log(oil.max())),
+                                                 (0.001,np.log(oil.max())),
+                                                 (0.001,np.log(oil.max())),
+                                                 (0.001,2),
                                                  (np.max([0,t1_loc-10]),t1_loc+2)],
                                     args=(t,np.log(oil)))
     
@@ -92,12 +92,13 @@ for i in range(4):
     plt.savefig('img/fig'+str(i)+'.pdf')
 
 myerror_log=[i['fun'] for i in results]
-
+myres=[]
 myerror_mse=[]
 for i in range(len(wells)):
     well=wells[i]
     t,oil=data_group.get_group(well)[['date_diff','oil']].values.T
     y_pred=np.exp(type_curve_output(results[i]['x'],t,oil))
+    myres.append(np.log(y_pred)-np.log(oil))
     myerror_mse.append(mean_squared_error(oil, y_pred))
 
 plt.figure()
@@ -126,10 +127,10 @@ for i,well in enumerate(wells):
     oil=oil[:int(len(oil)*0.7)]
     t1_loc=np.argmax(oil)
     print(i)
-    result = differential_evolution(type_curve, bounds=[(0,10*np.log(oil.max())),
-                                                 (0,np.log(oil.max())),
-                                                 (0,np.log(oil.max())),
-                                                 (0,2),
+    result = differential_evolution(type_curve, bounds=[(0.01,10*np.log(oil.max())),
+                                                 (0.001,np.log(oil.max())),
+                                                 (0.001,np.log(oil.max())),
+                                                 (0.001,2),
                                                  (np.max([0,t1_loc-10]),t1_loc+2)],
                                     args=(t,np.log(oil)))
     
@@ -174,21 +175,21 @@ for i in outlier_well_id:
 
 # well 36 has two production cycles, probably fracking happens in the middle.
 # should fit two models for the first and send halfs of the production respectively.
+# should use log diff
+data['log_oil']=np.log(data['oil'])
+data['oil_diff_log']=data.groupby('API')['log_oil'].diff()/data.groupby('API')['date_diff'].diff()
 
+myres=np.concatenate(myres)
+data['residule']=myres
+# visualize relationship
+plt.figure()
+plt.scatter(data['residule'],data['oil_diff_log'])
 
+# check oil diff for outlier detection
+plt.figure()
+data['oil_diff_log'].plot()
+plt.figure()
+i=0;data[data['API']==wells[i]]['oil_diff_log'].plot()
 
+# remove data with large residule and first order difference while keeping the maximum value
 
-
-
-#%%
-from cvxopt import matrix, log, div, spdiag, solvers
-
-def F(x = None, z = None):
-     if x is None:  return 0, matrix(0.0, (3,1))
-     if max(abs(x)) >= 1.0:  return None
-     u = 1 - x**2
-     val = -sum(log(u))
-     Df = div(2*x, u).T
-     if z is None:  return val, Df
-     H = spdiag(2 * z[0] * div(1 + x**2, u**2))
-     return val, Df, H

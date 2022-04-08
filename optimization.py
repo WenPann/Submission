@@ -174,9 +174,11 @@ for i in outlier_well_id:
 
 # well 36 has two production cycles, probably fracking happens in the middle.
 # should fit two models for the first and send halfs of the production respectively.
-
-
-
+# should use log diff
+data['log_oil']=np.log(data['oil'])
+data['oil_diff_log']=data.groupby('API')['log_oil'].diff()/data.groupby('API')['date_diff'].diff()
+# check oil diff for outlier detection
+i=0;data[data['API']==wells[i]]['oil_diff_log'].plot()
 
 
 
